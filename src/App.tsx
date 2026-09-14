@@ -110,6 +110,7 @@ export default function App() {
       <ResourceModal
         resource={selectedResource}
         waiting={waiting}
+        patients={patients}
         onClose={() => setSelectedResourceId(null)}
         onViewPatient={setHistoryPatientId}
       />

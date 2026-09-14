@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Lock, Unlock } from "lucide-react
 import { useEffect, useState } from "react";
 
 import { useAllocate, useRelease } from "../hooks/useHospitalData";
-import { cn, patientCode } from "../lib/utils";
+import { cn, humanWait, minutesSince, patientCode, urgencyTone } from "../lib/utils";
 import type { Patient, Resource } from "../types/hospital";
 import { Modal } from "./Modal";
 import { StatusPill } from "./StatusPill";
@@ -10,11 +10,13 @@ import { StatusPill } from "./StatusPill";
 export function ResourceModal({
   resource,
   waiting,
+  patients,
   onClose,
   onViewPatient,
 }: {
   resource: Resource | null;
   waiting: Patient[];
+  patients: Patient[];
   onClose: () => void;
   onViewPatient: (id: number) => void;
 }) {
@@ -28,6 +30,10 @@ export function ResourceModal({
   const compatible = resource
     ? waiting.filter((patient) => patient.resource_type_needed === resource.type)
     : [];
+  const assignedPatient = resource
+    ? patients.find((patient) => patient.current_resource_id === resource.id) ?? null
+    : null;
+  const historyPatientId = link?.patientId ?? assignedPatient?.id ?? null;
 
   useEffect(() => {
     if (!resource) return;
@@ -75,7 +81,7 @@ export function ResourceModal({
       open={isOpen}
       onClose={onClose}
       title={resource.name}
-      subtitle={`${resource.type} resource · revision ${resource.version}`}
+      subtitle={`${resource.type} resource`}
     >
       <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
         <div>
@@ -124,6 +130,56 @@ export function ResourceModal({
         </div>
       ) : (
         <div className="space-y-4">
+          <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+            <p className="label-muted mb-2">Assigned patient</p>
+            {assignedPatient ? (
+              <dl className="space-y-1.5 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-400">Patient ID</dt>
+                  <dd className="font-semibold text-slate-700">
+                    {patientCode(assignedPatient.id)}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-400">Name</dt>
+                  <dd className="font-semibold text-slate-700">{assignedPatient.name}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-400">Status</dt>
+                  <dd className="capitalize text-slate-700">{assignedPatient.status}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-400">Required resource</dt>
+                  <dd className="capitalize text-slate-700">
+                    {assignedPatient.resource_type_needed}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-400">Urgency</dt>
+                  <dd>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
+                        urgencyTone(assignedPatient.urgency_score),
+                      )}
+                    >
+                      {assignedPatient.urgency_score}
+                    </span>
+                  </dd>
+                </div>
+                {assignedPatient.status === "waiting" && (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-400">Waiting time</dt>
+                    <dd className="text-slate-700">
+                      {humanWait(minutesSince(assignedPatient.waiting_since))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            ) : (
+              <p className="text-sm text-slate-500">Patient details unavailable</p>
+            )}
+          </div>
           <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-100">
             This resource is committed. Releasing it returns it to <strong>available</strong> and
             appends a release event to the audit trail. History is never deleted.
@@ -161,12 +217,12 @@ export function ResourceModal({
         </p>
       )}
 
-      {link?.patientId != null && (
+      {historyPatientId != null && (
         <button
           className="mt-3 text-sm font-medium text-teal-600 hover:text-teal-700"
-          onClick={() => onViewPatient(link.patientId as number)}
+          onClick={() => onViewPatient(historyPatientId)}
         >
-          View {patientCode(link.patientId)} history →
+          View {patientCode(historyPatientId)} history →
         </button>
       )}
     </Modal>
